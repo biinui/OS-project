@@ -17,10 +17,6 @@ public class Processor {
         }
 
         runningProcess.burstTime--;
-        System.out.println("processor " + id + " executing: " + runningProcess.id + ", bursTime: " + runningProcess.burstTime);
-
-        if (runningProcess.burstTime == 0) {
-            runningProcess = null;
-        }
+        System.out.println("processor: " + id + " processing: " + runningProcess.id);
     }
 }

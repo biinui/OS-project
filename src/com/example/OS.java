@@ -1,9 +1,24 @@
 package com.example;
 
+import java.awt.*;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class OS {
+    private int PRODUCTION_MIN = 1;
+    private int PRODUCTION_MAX = 3;
+    private int BURST_TIME_MIN = 1;
+    private int BURST_TIME_MAX = 5;
+    private int MEMORY_MIN     = 1;
+    private int MEMORY_MAX     = 100;
+    private int PRIORITY_MIN   = 0;
+    private int PRIORITY_MAX   = 100;
+
+    Queue<Process> mReadyQueue = new PriorityQueue<>(new PriorityComparator());
+    List<Processor> mProcessors = initProcessors(4);
+    MainMemory mMainMemory = new MainMemory(4096); // MB
+    long cycle = 0;
 
     public void boot() {
         Thread loop = new Thread() {
@@ -15,30 +30,98 @@ public class OS {
     }
 
     private void loop() {
-        double oneCycle = 1000000000; // 1 second
         double lastCycle = System.nanoTime();
+        GUI gui = new GUI(this);
         boolean isRunning = true;
-        Queue<Process> mReadyQueue = new PriorityQueue<>(new BurstTimeComparator());
-        List<Processor> mProcessors = initProcessors(2);
         while (isRunning) {
+            if (gui.isPaused && !gui.isStep) {
+                Thread.yield();
+                try { Thread.sleep(50); } catch (Exception e) { }
+                continue;
+            }
+            gui.isStep = false;
+
             double now = System.nanoTime();
 
-            if (now - lastCycle > oneCycle) {
+            if (now - lastCycle > gui.oneCycle) {
+                System.out.println("cycle: " + cycle);
                 mReadyQueue.addAll(generateReadyProcesses());
-
-                for (Processor processor : mProcessors) {
-                    if (processor.runningProcess == null) {
-                        processor.runningProcess = mReadyQueue.poll();
-                    }
-                    processor.execute();
-                }
-
+                printReadyQueue();
+                mReadyQueue = dispatchToIdleProcessors(mReadyQueue);
+                gui.update(this);
+                executeProcessors();
+                mReadyQueue = ageProcesses(mReadyQueue);
                 lastCycle = System.nanoTime();
+                cycle++;
             }
 
             Thread.yield();
-            try { Thread.sleep(250); } catch (Exception e) { }
+            try { Thread.sleep(200); } catch (Exception e) { }
         }
+    }
+
+    private void executeProcessors() {
+        for (Processor processor : mProcessors) {
+            if (processor.runningProcess == null) {
+                continue;
+            }
+            processor.execute();
+
+            if (processor.runningProcess.burstTime == 0) {
+                mMainMemory.deallocate(processor.runningProcess.pageTable);
+                processor.runningProcess = null;
+            }
+        }
+    }
+
+    private Queue<Process> dispatchToIdleProcessors(Queue<Process> processes) {
+        for (Processor processor : mProcessors) {
+            // processor not idle
+            if (processor.runningProcess != null) {
+                continue;
+            }
+
+            for (Process processToDispatch : processes) {
+                if (processToDispatch.pageTable == null) {
+                    List<Integer> freeFrames = mMainMemory.getFreeFrames(processToDispatch.memoryUsage);
+                    mMainMemory.allocate(freeFrames);
+                    processToDispatch.pageTable = freeFrames;
+                }
+
+                if (processToDispatch.pageTable != null) {
+                    processes.remove(processToDispatch);
+                    processor.runningProcess = processToDispatch;
+                    break;
+                }
+
+                System.out.println("not enough space for process.");
+            }
+        }
+
+        return processes;
+    }
+
+    private Queue<Process> allocateReadyProcesses(Queue<Process> readyQueue) {
+        Queue<Process> queue = new PriorityQueue<>(readyQueue);
+
+        for (Process process : readyQueue) {
+            if (process.pageTable != null) {
+                continue;
+            }
+            
+            List<Integer> freeFrames = mMainMemory.getFreeFrames(process.memoryUsage);
+
+            if (freeFrames != null) {
+                mMainMemory.allocate(freeFrames);
+                process.pageTable = freeFrames;
+                queue.add(process);
+                break;
+            }
+
+            System.out.println("not enough space for process.");
+        }
+
+        return queue;
     }
 
     private List<Processor> initProcessors(int count) {
@@ -59,25 +142,48 @@ public class OS {
     }
 
     private Queue<Process> generateReadyProcesses() {
+        if (mReadyQueue.size() >= 10) {
+            return new PriorityQueue<>();
+        }
+
         Queue<Process> processes = new PriorityQueue<>();
-        int count = random(0, 1);
+        int count = random(PRODUCTION_MIN, PRODUCTION_MAX);
         for (int i = 0; i < count; i++) {
-            int burstTime = random(1, 5);
-            int memoryUsage = random(100, 250);
-            Process process = new Process(generateID(), burstTime, memoryUsage);
-            System.out.println("ready process: " + process.id + ", burstTime: " + process.burstTime + ", memoryUsage: " + process.memoryUsage);
+            int priority = random(PRIORITY_MIN, PRIORITY_MAX);
+            int burstTime = random(BURST_TIME_MIN, BURST_TIME_MAX);
+            int memoryUsage = random(MEMORY_MIN, MEMORY_MAX);
+            Color color = new Color(random(0, 255), random(0, 255), random(0, 255));
+            Process process = new Process(generateID(), priority, burstTime, memoryUsage, cycle, color);
             processes.add(process);
         }
         return processes;
     }
 
-    private class BurstTimeComparator implements Comparator<Process> {
+    private void printReadyQueue() {
+        System.out.println("ready queue:");
+        for (Process process : mReadyQueue) {
+            System.out.println("pid: " + process.id + ", p: " + process.priority + ", t: " + process.burstTime + ", m: " + process.memoryUsage);
+        }
+    }
+
+    private class PriorityComparator implements Comparator<Process> {
 
         @Override
         public int compare(Process p1, Process p2) {
-            return p1.burstTime - p2.burstTime;
+            return p1.priority - p2.priority;
         }
 
+    }
+
+    private Queue<Process> ageProcesses(Queue<Process> processes) {
+        Queue<Process> agedProcesses = new PriorityQueue<>();
+        for (Process process : processes) {
+            if (process.priority > 0) {
+                process.priority--;
+            }
+            agedProcesses.add(process);
+        }
+        return agedProcesses;
     }
 
     public static void main(String[] args) {
