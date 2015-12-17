@@ -19,6 +19,7 @@ public class OS {
     List<Processor> mProcessors = initProcessors(4);
     MainMemory mMainMemory = new MainMemory(1024); // MB
     long cycle = 0;
+    GUI gui;
 
     public void boot() {
         Thread loop = new Thread() {
@@ -31,35 +32,37 @@ public class OS {
 
     private void loop() {
         double lastCycle = System.nanoTime();
-        GUI gui = new GUI(this);
+        gui = new GUI(this);
         boolean isRunning = true;
         while (isRunning) {
             double now = System.nanoTime();
-            if (gui.isPaused && !gui.isStep) {
-                Thread.yield();
-                try { Thread.sleep(50); } catch (Exception e) { }
-                continue;
-            }
-            gui.isStep = false;
 
             if (now - lastCycle > gui.oneCycle) {
-
+                stepPoint();
                 mReadyQueue.addAll(generateReadyProcesses());
                 mReadyQueue = allocateReadyProcesses(mReadyQueue);
-                printReadyQueue();
+                stepPoint();
                 mReadyQueue = dispatchToIdleProcessors(mReadyQueue);
-                gui.update(this);
+                stepPoint();
                 executeProcessors();
                 mReadyQueue = ageProcesses(mReadyQueue);
+                gui.update(this);
                 lastCycle = System.nanoTime();
                 cycle++;
             }
 
-
-
             Thread.yield();
             try { Thread.sleep(200); } catch (Exception e) { }
         }
+    }
+
+    private void stepPoint() {
+        gui.update(this);
+        while (gui.isPaused && !gui.isStep) {
+            Thread.yield();
+            try { Thread.sleep(50); } catch (Exception e) { }
+        }
+        gui.isStep = false;
     }
 
     private void executeProcessors() {
