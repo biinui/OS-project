@@ -11,7 +11,7 @@ public class Process implements Comparable<Process> {
     public int priority;
     public int burstTime;
     public int memoryUsage;
-    public List<Integer> pageTable;
+    public List<Integer> memoryTable;
     public double arrival;
     public Color color;
 

@@ -60,11 +60,13 @@ public class GUI extends JFrame {
             CorePanel corePanel = corePanels.get(processor.id);
             String id = "xxxxxxxx";
             String time = "x";
+            Color color = Color.black;
             if (process != null) {
                 id = process.id;
                 time = String.valueOf(process.burstTime);
+                color = process.color;
             }
-            corePanel.update(id, time);
+            corePanel.update(id, time, color);
             corePanel.updateUI();
         }
     }
@@ -74,7 +76,16 @@ public class GUI extends JFrame {
            SwingUtilities.invokeLater(() -> {
                updateCPUs(os.mProcessors);
                queueScrollPane.update(os.mReadyQueue);
-               memoryPanel.update(os.mProcessors);
+//               memoryPanel.update(os.mProcessors);
+               List<Process> processes = new ArrayList<Process>(os.mReadyQueue);
+               for (Processor processor : os.mProcessors) {
+                   Process process = processor.runningProcess;
+                   if (process == null) {
+                       continue;
+                   }
+                   processes.add(process);
+               }
+               memoryPanel.updateProcesses(processes);
            });
         }).start();
     }
@@ -88,30 +99,39 @@ public class GUI extends JFrame {
             setLocation(0, id * 50);
             setSize(200, 50);
 
-            Color color = colors.get(id);
             cpuId = new JLabel(String.valueOf(id));
             cpuId.setLocation(0, 0);
             cpuId.setSize(50, 50);
-            cpuId.setForeground(color);
+
             add(cpuId);
 
             processId = new JLabel("xxxxxxxx");
             processId.setLocation(50, 0);
             processId.setSize(100, 50);
-            processId.setForeground(color);
+
             add(processId);
 
             processTime = new JLabel("x");
             processTime.setLocation(100, 0);
             processTime.setSize(50, 50);
-            processTime.setForeground(color);
+
             add(processTime);
         }
 
-        public void update(String pid, String time) {
+        public void update(String pid, String time, Color color) {
             processId.setText(pid);
             processTime.setText(time);
+            Color contrast = getContrastColor(color);
+            cpuId.setForeground(contrast);
+            processId.setForeground(contrast);
+            processTime.setForeground(contrast);
+            setBackground(color);
         }
+    }
+
+    public static Color getContrastColor(Color color) {
+        double y = (299 * color.getRed() + 587 * color.getGreen() + 114 * color.getBlue()) / 1000;
+        return y >= 128 ? Color.black : Color.white;
     }
 
     private class QueueScrollPane extends JScrollPane {
@@ -135,6 +155,12 @@ public class GUI extends JFrame {
             while (queue.peek() != null) {
                 Process process = queue.poll();
                 ProcessPanel processPanel = new ProcessPanel(index, process);
+                Color contrast = getContrastColor(process.color);
+                processPanel.setBackground(process.color);
+                processPanel.pPriority.setForeground(contrast);
+                processPanel.pId.setForeground(contrast);
+                processPanel.pTime.setForeground(contrast);
+                processPanel.pMemory.setForeground(contrast);
                 queuePanel.add(processPanel);
                 queuePanel.updateUI();
                 index++;
@@ -213,8 +239,33 @@ public class GUI extends JFrame {
                     continue;
                 }
 
-                List<Integer> frames = process.pageTable;
+                List<Integer> frames = process.memoryTable;
                 Color color = colors.get(processor.id);
+                for (int frame : frames) {
+                    JPanel panel = memoryFrames.get(frame);
+                    panel.setBackground(color);
+                    memoryFrames.set(frame, panel);
+                    panel.updateUI();
+                }
+            }
+
+        }
+
+        public void updateProcesses(List<Process> processes) {
+            for (int frame = 0; frame < size; frame++) {
+                JPanel panel = memoryFrames.get(frame);
+                panel.setBackground(Color.lightGray);
+                panel.updateUI();
+                memoryFrames.set(frame, panel);
+            }
+
+            for (Process process : processes) {
+                if (process == null || process.memoryTable == null) {
+                    continue;
+                }
+
+                List<Integer> frames = process.memoryTable;
+                Color color = process.color;
                 for (int frame : frames) {
                     JPanel panel = memoryFrames.get(frame);
                     panel.setBackground(color);

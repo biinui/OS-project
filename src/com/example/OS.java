@@ -17,7 +17,7 @@ public class OS {
 
     Queue<Process> mReadyQueue = new PriorityQueue<>(new PriorityComparator());
     List<Processor> mProcessors = initProcessors(4);
-    MainMemory mMainMemory = new MainMemory(4096); // MB
+    MainMemory mMainMemory = new MainMemory(1024); // MB
     long cycle = 0;
 
     public void boot() {
@@ -68,7 +68,7 @@ public class OS {
             processor.execute();
 
             if (processor.runningProcess.burstTime == 0) {
-                mMainMemory.deallocate(processor.runningProcess.pageTable);
+                mMainMemory.deallocate(processor.runningProcess.memoryTable);
                 processor.runningProcess = null;
             }
         }
@@ -82,13 +82,13 @@ public class OS {
             }
 
             for (Process processToDispatch : processes) {
-                if (processToDispatch.pageTable == null) {
+                if (processToDispatch.memoryTable == null) {
                     List<Integer> freeFrames = mMainMemory.getFreeFrames(processToDispatch.memoryUsage);
                     mMainMemory.allocate(freeFrames);
-                    processToDispatch.pageTable = freeFrames;
+                    processToDispatch.memoryTable = freeFrames;
                 }
 
-                if (processToDispatch.pageTable != null) {
+                if (processToDispatch.memoryTable != null) {
                     processes.remove(processToDispatch);
                     processor.runningProcess = processToDispatch;
                     break;
@@ -105,7 +105,7 @@ public class OS {
         Queue<Process> queue = new PriorityQueue<>(readyQueue);
 
         for (Process process : readyQueue) {
-            if (process.pageTable != null) {
+            if (process.memoryTable != null) {
                 continue;
             }
             
@@ -113,7 +113,7 @@ public class OS {
 
             if (freeFrames != null) {
                 mMainMemory.allocate(freeFrames);
-                process.pageTable = freeFrames;
+                process.memoryTable = freeFrames;
                 queue.add(process);
                 break;
             }
