@@ -15,7 +15,7 @@ public class GUI extends JFrame {
     List<CorePanel> corePanels = new ArrayList<>();
     QueueScrollPane queueScrollPane;
     MemoryPanel memoryPanel;
-    ControlPanel controlPanel;
+    public ControlPanel controlPanel;
     public boolean isPaused = true;
     public boolean isStep = false;
     double oneCycle = 1000000000; // 1 second
@@ -278,11 +278,11 @@ public class GUI extends JFrame {
 
     }
 
-    private class ControlPanel extends JPanel {
-        RangePanel production;
-        RangePanel time;
-        RangePanel memory;
-        RangePanel priority;
+    public class ControlPanel extends JPanel {
+        public RangePanel production;
+        public RangePanel time;
+        public RangePanel memory;
+        public RangePanel priority;
         JButton pause;
         JButton play;
         JButton fastForward;
@@ -333,29 +333,29 @@ public class GUI extends JFrame {
         private void initRangePanels() {
             production = new RangePanel("Production");
             production.setLocation(0, 0);
-            production.min.setText("");
-            production.max.setText("");
+            production.min.setText("1");
+            production.max.setText("3");
             add(production);
             time = new RangePanel("Burst Time");
             time.setLocation(0, 50);
-            time.min.setText("");
-            time.max.setText("");
+            time.min.setText("1");
+            time.max.setText("5");
             add(time);
             memory = new RangePanel("Memory Usage");
             memory.setLocation(0, 100);
-            memory.min.setText("");
-            memory.max.setText("");
+            memory.min.setText("1");
+            memory.max.setText("100");
             add(memory);
             priority = new RangePanel("Priority");
             priority.setLocation(0, 150);
-            priority.min.setText("");
-            priority.max.setText("");
+            priority.min.setText("0");
+            priority.max.setText("100");
             add(priority);
         }
 
     }
 
-    private class RangePanel extends JPanel {
+    public class RangePanel extends JPanel {
         JLabel label;
         JTextField min = new JTextField("0");
         JTextField max = new JTextField("1");
@@ -375,6 +375,14 @@ public class GUI extends JFrame {
             max.setLocation(150, 0);
             max.setSize(50, 50);
             add(max);
+        }
+
+        public int getMin() {
+            return Integer.parseInt(min.getText());
+        }
+
+        public int getMax() {
+            return Integer.parseInt(max.getText());
         }
     }
 

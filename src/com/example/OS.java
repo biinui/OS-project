@@ -30,15 +30,27 @@ public class OS {
         loop.start();
     }
 
+    private void initConstants() {
+        PRODUCTION_MIN = gui.controlPanel.production.getMin();
+        PRODUCTION_MAX = gui.controlPanel.production.getMax();
+        BURST_TIME_MIN = gui.controlPanel.time.getMin();
+        BURST_TIME_MAX = gui.controlPanel.time.getMax();
+        MEMORY_MIN     = gui.controlPanel.memory.getMin();
+        MEMORY_MAX     = gui.controlPanel.memory.getMax();
+        PRIORITY_MIN   = gui.controlPanel.priority.getMin();
+        PRIORITY_MAX   = gui.controlPanel.priority.getMax();
+    }
+
     private void loop() {
         double lastCycle = System.nanoTime();
         gui = new GUI(this);
+        stepPoint();
+        initConstants();
         boolean isRunning = true;
         while (isRunning) {
             double now = System.nanoTime();
 
             if (now - lastCycle > gui.oneCycle) {
-                stepPoint();
                 mReadyQueue.addAll(generateReadyProcesses());
                 mReadyQueue = allocateReadyProcesses(mReadyQueue);
                 stepPoint();
@@ -46,13 +58,13 @@ public class OS {
                 stepPoint();
                 executeProcessors();
                 mReadyQueue = ageProcesses(mReadyQueue);
-                gui.update(this);
+                stepPoint();
                 lastCycle = System.nanoTime();
                 cycle++;
             }
 
             Thread.yield();
-            try { Thread.sleep(200); } catch (Exception e) { }
+            try { Thread.sleep(100); } catch (Exception e) { }
         }
     }
 
@@ -60,7 +72,7 @@ public class OS {
         gui.update(this);
         while (gui.isPaused && !gui.isStep) {
             Thread.yield();
-            try { Thread.sleep(50); } catch (Exception e) { }
+            try { Thread.sleep(10); } catch (Exception e) { }
         }
         gui.isStep = false;
     }
@@ -107,6 +119,7 @@ public class OS {
     }
 
     private Queue<Process> allocateReadyProcesses(Queue<Process> readyQueue) {
+        readyQueue = deallocate(readyQueue);
         Queue<Process> newQueue = new PriorityQueue<>();
         for (Process process : readyQueue) {
             if (process.memoryTable != null) {
@@ -125,6 +138,20 @@ public class OS {
             System.out.println("not enough space for process.");
         }
 
+        return newQueue;
+    }
+
+    private Queue<Process> deallocate(Queue<Process> processes) {
+        Queue<Process> newQueue = new PriorityQueue<>();
+        for (Process process : processes) {
+            if (process.memoryTable == null) {
+                newQueue.add(process);
+                continue;
+            }
+            mMainMemory.deallocate(process.memoryTable);
+            process.memoryTable = null;
+            newQueue.add(process);
+        }
         return newQueue;
     }
 
