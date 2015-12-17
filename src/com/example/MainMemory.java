@@ -9,23 +9,23 @@ import java.util.Map;
  * Created by yu on 11/29/2015.
  */
 public class MainMemory {
-    public List<Boolean> frameTable = new ArrayList<>();
+    Map<Integer, Integer> freeMap = new HashMap<>();
+    Map<Integer, Integer> usedMap = new HashMap<>();
 
     public MainMemory(int size) {
         for (int frame = 0; frame < size; frame++) {
-            frameTable.add(frame, true);
+            freeMap.put(frame, frame);
         }
     }
 
     public List<Integer> getFreeFrames(int size) {
-        List<Integer> frames = new ArrayList<>();
-        for (int frame = 0; frame < frameTable.size(); frame++) {
-            boolean isFree = frameTable.get(frame);
-            if (isFree) {
-                size--;
-                frames.add(frame);
-
-                if (size == 0) {
+        if (freeMap.size() >= size) {
+            List<Integer> frames = new ArrayList<>();
+            for (Integer frame : freeMap.keySet()) {
+                if (size > 0) {
+                    size--;
+                    frames.add(frame);
+                } else {
                     return frames;
                 }
             }
@@ -35,13 +35,15 @@ public class MainMemory {
 
     public void allocate(List<Integer> frames) {
         for (int frame : frames) {
-            frameTable.set(frame, false);
+            freeMap.remove(frame);
+            usedMap.put(frame, frame);
         }
     }
 
     public void deallocate(List<Integer> frames) {
         for (int frame : frames) {
-            frameTable.set(frame, true);
+            usedMap.remove(frame);
+            freeMap.put(frame, frame);
         }
     }
 
