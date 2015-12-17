@@ -3,8 +3,6 @@ package com.example;
 import javax.swing.*;
 import javax.swing.border.LineBorder;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.util.*;
 import java.util.List;
 
@@ -180,7 +178,7 @@ public class GUI extends JFrame {
     }
 
     private class MemoryPanel extends JPanel {
-        int frames = 4096 / 4;
+        int size = 1024;
         List<JPanel> memoryFrames = new ArrayList<>();
 
         public MemoryPanel() {
@@ -188,7 +186,7 @@ public class GUI extends JFrame {
             setBorder(LineBorder.createBlackLineBorder());
             setBounds(0, 200, 1000, 420);
 
-            for (int frame = 0; frame < frames; frame++) {
+            for (int frame = 0; frame < size; frame++) {
                 JPanel panel = new JPanel();
                 panel.setLayout(null);
                 panel.setBackground(Color.lightGray);
@@ -201,7 +199,7 @@ public class GUI extends JFrame {
         }
 
         public void update(List<Processor> processors) {
-            for (int frame = 0; frame < frames; frame++) {
+            for (int frame = 0; frame < size; frame++) {
                 JPanel panel = memoryFrames.get(frame);
                 panel.setBackground(Color.lightGray);
                 panel.updateUI();
