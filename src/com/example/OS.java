@@ -34,6 +34,7 @@ public class OS {
         GUI gui = new GUI(this);
         boolean isRunning = true;
         while (isRunning) {
+            double now = System.nanoTime();
             if (gui.isPaused && !gui.isStep) {
                 Thread.yield();
                 try { Thread.sleep(50); } catch (Exception e) { }
@@ -41,11 +42,10 @@ public class OS {
             }
             gui.isStep = false;
 
-            double now = System.nanoTime();
-
             if (now - lastCycle > gui.oneCycle) {
-                System.out.println("cycle: " + cycle);
+
                 mReadyQueue.addAll(generateReadyProcesses());
+                mReadyQueue = allocateReadyProcesses(mReadyQueue);
                 printReadyQueue();
                 mReadyQueue = dispatchToIdleProcessors(mReadyQueue);
                 gui.update(this);
@@ -54,6 +54,8 @@ public class OS {
                 lastCycle = System.nanoTime();
                 cycle++;
             }
+
+
 
             Thread.yield();
             try { Thread.sleep(200); } catch (Exception e) { }
@@ -102,10 +104,10 @@ public class OS {
     }
 
     private Queue<Process> allocateReadyProcesses(Queue<Process> readyQueue) {
-        Queue<Process> queue = new PriorityQueue<>(readyQueue);
-
+        Queue<Process> newQueue = new PriorityQueue<>();
         for (Process process : readyQueue) {
             if (process.memoryTable != null) {
+                newQueue.add(process);
                 continue;
             }
             
@@ -114,14 +116,13 @@ public class OS {
             if (freeFrames != null) {
                 mMainMemory.allocate(freeFrames);
                 process.memoryTable = freeFrames;
-                queue.add(process);
-                break;
+                newQueue.add(process);
             }
 
             System.out.println("not enough space for process.");
         }
 
-        return queue;
+        return newQueue;
     }
 
     private List<Processor> initProcessors(int count) {
